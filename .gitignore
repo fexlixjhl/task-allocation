@@ -1,0 +1,20 @@
+# Go
+/backend/bin/
+*.test
+coverage.out
+
+# Node
+node_modules/
+/frontend/dist/
+
+# Entorno
+.env
+.env.local
+*.pem
+
+# Herramientas
+/tmp/
+.DS_Store
+
+# Resultados de seguridad
+/security-reports/
