@@ -1,0 +1,14 @@
+# Toda la base de código requiere tu revisión.
+* @fexlixjhl
+
+# Rutas críticas: se listan explícitamente para documentar la intención,
+# aunque el patrón global ya las cubra. Ningún agente puede modificar
+# las reglas bajo las que opera sin aprobación humana.
+/api/                 @fexlixjhl
+/agents/              @fexlixjhl
+/skills/              @fexlixjhl
+/AGENTS.md            @fexlixjhl
+/.github/             @fexlixjhl
+/tools/agentsync/     @fexlixjhl
+/docs/adr/            @fexlixjhl
+/docs/security/       @fexlixjhl
