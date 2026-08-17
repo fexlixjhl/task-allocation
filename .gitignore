@@ -18,3 +18,7 @@ node_modules/
 
 # Resultados de seguridad
 /security-reports/
+# IDEs
+.idea/
+*.iml
+.vscode/
