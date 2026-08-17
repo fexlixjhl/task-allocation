@@ -17,6 +17,7 @@ import (
 
 const (
 	canonicalDir = "agents"
+	skillsDir    = "skills"
 	claudeDir    = ".claude/agents"
 	copilotDir   = ".github/agents"
 	factsFile    = "AGENTS.md"
@@ -72,7 +73,12 @@ func run(root string, check bool) ([]string, error) {
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
-
+	// Skills referenciados: deben existir y caber en presupuesto.
+	skillProblems, err := checkSkills(root, agents)
+	if err != nil {
+		return nil, err
+	}
+	problems = append(problems, skillProblems...)
 	// Artefactos esperados.
 	want := map[string][]byte{}
 	for _, a := range agents {
@@ -123,6 +129,42 @@ func run(root string, check bool) ([]string, error) {
 
 	if len(problems) > 0 && check {
 		problems = append(problems, "ejecuta `make generate` y commitea el resultado")
+	}
+	return problems, nil
+}
+
+// checkSkills verifica que cada skill referenciado por un agente existe en
+// skills/ y respeta el presupuesto de la capa de procedimiento.
+func checkSkills(root string, agents []Agent) ([]string, error) {
+	referencedBy := map[string][]string{}
+	for _, a := range agents {
+		for _, s := range a.Skills {
+			referencedBy[s] = append(referencedBy[s], a.Name)
+		}
+	}
+	names := make([]string, 0, len(referencedBy))
+	for s := range referencedBy {
+		names = append(names, s)
+	}
+	sort.Strings(names)
+
+	var problems []string
+	for _, s := range names {
+		p := filepath.Join(root, skillsDir, s+".md")
+		raw, err := os.ReadFile(p)
+		if os.IsNotExist(err) {
+			problems = append(problems, fmt.Sprintf(
+				"%s/%s.md: no existe; lo referencian: %s",
+				skillsDir, s, strings.Join(referencedBy[s], ", ")))
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if n := contentLines(string(raw)); n > maxSkillLines {
+			problems = append(problems, fmt.Sprintf(
+				"%s/%s.md: %d líneas de contenido, máximo %d", skillsDir, s, n, maxSkillLines))
+		}
 	}
 	return problems, nil
 }

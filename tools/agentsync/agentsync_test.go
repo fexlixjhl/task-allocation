@@ -33,6 +33,17 @@ func writeSample(t *testing.T, dir, name, content string) {
 	}
 }
 
+func writeSkill(t *testing.T, dir, name string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, skillsDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "---\nname: " + name + "\ndescription: skill de prueba\n---\n\nHaz esto.\n"
+	if err := os.WriteFile(filepath.Join(dir, skillsDir, name+".md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLoadParsesFoldedDescription(t *testing.T) {
 	dir := t.TempDir()
 	writeSample(t, dir, "demo-builder.md", sample)
@@ -97,6 +108,7 @@ func TestContentLinesIgnoresHeadingsAndBlanks(t *testing.T) {
 func TestRunGeneratesThenChecksClean(t *testing.T) {
 	dir := t.TempDir()
 	writeSample(t, dir, "demo-builder.md", sample)
+	writeSkill(t, dir, "github-pr-protocol")
 
 	if problems, err := run(dir, false); err != nil || len(problems) > 0 {
 		t.Fatalf("generate: err=%v problems=%v", err, problems)
@@ -122,6 +134,7 @@ func TestRunGeneratesThenChecksClean(t *testing.T) {
 func TestRunDetectsOrphans(t *testing.T) {
 	dir := t.TempDir()
 	writeSample(t, dir, "demo-builder.md", sample)
+	writeSkill(t, dir, "github-pr-protocol")
 	if _, err := run(dir, false); err != nil {
 		t.Fatal(err)
 	}
@@ -144,5 +157,41 @@ func TestRunDetectsOrphans(t *testing.T) {
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
 		t.Fatal("el huérfano debería haberse eliminado al regenerar")
+	}
+}
+
+func TestCheckSkillsReportsMissing(t *testing.T) {
+	dir := t.TempDir()
+	agents := []Agent{{Name: "demo-builder", Skills: []string{"no-existe"}}}
+
+	problems, err := checkSkills(dir, agents)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "no existe") {
+		t.Fatalf("se esperaba un problema por skill ausente, obtuve %v", problems)
+	}
+	if !strings.Contains(problems[0], "demo-builder") {
+		t.Error("el mensaje debe decir qué agente lo referencia")
+	}
+}
+
+func TestCheckSkillsReportsOversized(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, skillsDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Repeat("una instrucción más\n", maxSkillLines+1)
+	content := "---\nname: gordo\ndescription: demasiado largo\n---\n\n" + body
+	if err := os.WriteFile(filepath.Join(dir, skillsDir, "gordo.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	problems, err := checkSkills(dir, []Agent{{Name: "x", Skills: []string{"gordo"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "máximo") {
+		t.Fatalf("se esperaba un problema de presupuesto, obtuve %v", problems)
 	}
 }

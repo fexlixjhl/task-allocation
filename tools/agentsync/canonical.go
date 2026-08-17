@@ -12,6 +12,7 @@ import (
 const (
 	maxAgentInstructions = 40
 	maxFactsLines        = 40
+	maxSkillLines        = 80
 )
 
 // Agent es una definición canónica de agents/<name>.md.
