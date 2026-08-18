@@ -22,9 +22,9 @@
 
 - [ ] `make verify` pasa limpio en local
 
----
-
-Spec: api/openapi.yaml@<sha>
-Plan: docs/features/<slug>/PLAN.md
-Agent: <nombre-del-agente|none>
-Runtime: <claude-code|copilot|human>
+---   
+    Issue: #<n>
+    Spec: api/openapi.yaml@<sha>
+    Plan: docs/features/<slug>/PLAN.md
+    Agent: <nombre-del-agente|none>
+    Runtime: <claude-code|copilot|human>

@@ -21,13 +21,15 @@ Formato:
 
     Implementa createSlot según el paso 2 del plan.
 
+    Issue: #17
     Spec: api/openapi.yaml@a1b2c3d
     Plan: docs/features/slot-creation/PLAN.md
     Agent: backend-builder
     Runtime: claude-code
 
-Los cuatro trailers son obligatorios. `Spec:` lleva el SHA corto del commit
-de la spec contra la que trabajas, no la rama.
+Los cinco trailers son obligatorios. `Issue:` es el requisito de negocio que
+origina el cambio; `Spec:` lleva el SHA corto del commit de la spec contra la
+que trabajas, no la rama.
 
 ## Pull request
 1. Ábrelo en **draft** desde el primer commit.
