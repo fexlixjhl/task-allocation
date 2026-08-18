@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+# Generados: no editar a mano, colapsados en diffs
+.claude/agents/**                          linguist-generated=true
+.claude/skills/**                          linguist-generated=true
+.github/agents/**                          linguist-generated=true
+backend/internal/adapters/http/gen/**      linguist-generated=true
+backend/internal/adapters/postgres/gen/**  linguist-generated=true
+frontend/src/api/**                        linguist-generated=true

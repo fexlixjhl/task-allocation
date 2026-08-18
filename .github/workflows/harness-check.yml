@@ -1,0 +1,37 @@
+name: harness-check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harness:
+    name: harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/agentsync/go.mod
+          cache: false
+
+      - name: Vet del generador
+        run: go -C tools/agentsync vet ./...
+
+      - name: Tests del generador
+        run: go -C tools/agentsync test ./...
+
+      - name: El arnés está al día
+        run: make agents-check
