@@ -1,0 +1,40 @@
+name: task-allocation
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: taskalloc
+      POSTGRES_PASSWORD: taskalloc-dev-only
+      POSTGRES_DB: taskalloc
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskalloc -d taskalloc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  db-ephemeral:
+    profiles: ["ephemeral"]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: taskalloc
+      POSTGRES_PASSWORD: taskalloc-ephemeral
+      POSTGRES_DB: taskalloc_test
+      PGDATA: /dev/shm/pgdata
+    tmpfs:
+      - /dev/shm
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskalloc -d taskalloc_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  db-data:

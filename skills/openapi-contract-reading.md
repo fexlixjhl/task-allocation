@@ -11,7 +11,8 @@ description: Cómo interpretar api/openapi.yaml como fuente de verdad
 3. La operación por `operationId`. Nunca la referencies por método+ruta:
    el `operationId` es el identificador estable entre spec, código y plan.
 4. Los `$ref` de request y response, resueltos hasta el final.
-5. Las extensiones propias del proyecto: `x-required-scope` y `x-owner-check`.
+5. Las extensiones propias del proyecto: `x-required-scope`, `x-owner-check`
+   y `x-source-issue`.
 
 ## Extensiones del proyecto
 `x-required-scope`: string. Permiso que el token debe portar.
@@ -21,6 +22,10 @@ description: Cómo interpretar api/openapi.yaml como fuente de verdad
 - `param`: nombre del parámetro que identifica la instancia.
 - `rule`: enum cerrado. Valores admitidos: `owner-only`,
   `owner-or-project-lead`, `team-member`, `project-lead-only`.
+
+`x-source-issue`: entero. Número del issue de requisito que motivó la
+operación. Es el eslabón que conecta negocio con contrato: desde cualquier
+`operationId` se puede llegar al requisito que lo justifica.
 
 Cada valor de `rule` corresponde a un método de `ports.Authorizer`. Un valor
 fuera del enum es un error de contrato, no una decisión de implementación.
@@ -48,3 +53,4 @@ Cualquiera de estas es motivo de `needs-contract`, nunca de improvisar:
 - Recurso con identificador en el path y sin `x-owner-check`.
 - Campo de texto libre sin `maxLength`.
 - Identificador de path que no es `format: uuid`.
+- Operación sin `x-source-issue`.
