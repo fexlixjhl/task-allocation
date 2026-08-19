@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: task-allocation
+  version: 0.1.0
+  description: Calendario de equipo con franjas, proyectos y asignaciones.
+  contact:
+    name: fexlixjhl
+    url: https://github.com/fexlixjhl/task-allocation
+tags:
+  - name: slots
+    description: Franjas horarias
+servers:
+  - url: https://api.example.test/v1
+paths:
+  /slots:
+    get:
+      operationId: listSlots
+      summary: Lista franjas horarias
+      description: Devuelve las franjas visibles para el solicitante.
+      tags: [slots]
+      x-source-issue: 17
+      x-required-scope: slots:read
+      security:
+        - oidc: [slots:read]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Colección de franjas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Slot' }
+  /slots/{slotId}:
+    patch:
+      operationId: updateSlot
+      summary: Actualiza una franja
+      description: Reprograma o anota una franja existente.
+      tags: [slots]
+      x-source-issue: 17
+      x-required-scope: slots:write
+      x-owner-check:
+        resource: slot
+        param: slotId
+        rule: owner-or-project-lead
+      security:
+        - oidc: [slots:write]
+      parameters:
+        - name: slotId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SlotUpdate' }
+      responses:
+        '204': { description: Actualizada }
+        '403': { description: Prohibido }
+        '404': { description: No encontrada }
+components:
+  securitySchemes:
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: https://idp.example.test/.well-known/openid-configuration
+  schemas:
+    Slot:
+      type: object
+      required: [id, startsAt, endsAt]
+      properties:
+        id: { type: string, format: uuid }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        note: { type: string, maxLength: 280 }
+        status: { type: string, enum: [free, booked] }
+    SlotUpdate:
+      type: object
+      properties:
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        note: { type: string, maxLength: 280 }
