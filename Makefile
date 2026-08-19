@@ -2,13 +2,15 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 GO        ?= go
+SPECTRAL  ?= npx --yes @stoplight/spectral-cli
 AGENTSYNC := $(GO) -C tools/agentsync run . -root ../..
 
 .PHONY: help generate verify lint test \
         agents agents-check \
         generate-api generate-sql generate-client \
         spec-lint backend-lint frontend-lint \
-        backend-test frontend-test
+        backend-test frontend-test \
+        spec-ruleset-selftest
 
 ## --- Interfaz pública: estos tres targets los invocan los agentes ---
 
@@ -58,12 +60,16 @@ generate-client:
 
 ## --- Linters (se configuran en PR-2) ---
 
-spec-lint:
+spec-lint: ## Lint del contrato con el ruleset propio
+	@$(MAKE) --no-print-directory spec-ruleset-selftest
 	@if [ -f api/openapi.yaml ]; then \
-	  echo "make: spectral pendiente de configurar (PR-2)"; \
+	  $(SPECTRAL) lint api/openapi.yaml --ruleset api/.spectral.yaml --fail-severity=error; \
 	else \
 	  echo "make: sin api/openapi.yaml todavía, spec-lint omitido"; \
 	fi
+
+spec-ruleset-selftest: ## Verifica que el ruleset de Spectral hace lo que dice
+	@./api/testdata/selftest.sh
 
 backend-lint:
 	@if [ -n "$$(find backend -name '*.go' -print -quit 2>/dev/null)" ]; then \

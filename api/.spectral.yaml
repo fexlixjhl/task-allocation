@@ -1,0 +1,222 @@
+extends: ["spectral:oas"]
+
+rules:
+  # Falso positivo conocido: con openIdConnect los scopes no se enumeran en
+  # el securityScheme, así que esta regla no puede resolverlos.
+  oas3-operation-security-defined: off
+
+  # --- Trazabilidad (ADR-0003, PR-1) ---
+  ta-operation-source-issue:
+    description: Toda operación declara el issue de requisito que la motivó.
+    message: "{{error}}"
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: ["x-source-issue"]
+          properties:
+            x-source-issue: { type: integer, minimum: 1 }
+
+  # --- Autorización declarada en el contrato (ASVS V4) ---
+  ta-operation-security-declared:
+    description: >
+      Toda operación declara security. Un array vacío significa endpoint
+      público de forma explícita; omitirlo no es una opción.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: ["security"]
+
+  ta-public-operation-is-visible:
+    description: Endpoint público declarado. Requiere justificación en el plan.
+    severity: warn
+    given: "$.paths[*][get,put,post,delete,patch].security"
+    then:
+      function: length
+      functionOptions:
+        min: 1
+
+  ta-operation-required-scope:
+    description: Toda operación no pública declara x-required-scope.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          if:
+            properties:
+              security: { type: array, minItems: 1 }
+            required: ["security"]
+          then:
+            required: ["x-required-scope"]
+            properties:
+              x-required-scope:
+                type: string
+                pattern: "^[a-z]+:(read|write|admin)$"
+
+  ta-owner-check-required:
+    description: >
+      Una operación con parámetro de path opera sobre una instancia concreta
+      y debe declarar x-owner-check.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          if:
+            required: ["parameters"]
+            properties:
+              parameters:
+                type: array
+                contains:
+                  type: object
+                  required: ["in"]
+                  properties:
+                    in: { const: path }
+          then:
+            required: ["x-owner-check"]
+
+  ta-owner-check-shape:
+    description: x-owner-check usa el enum cerrado de reglas de autorización.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch].x-owner-check"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: ["resource", "param", "rule"]
+          additionalProperties: false
+          properties:
+            resource: { enum: ["slot", "project", "assignment"] }
+            param: { type: string, minLength: 1 }
+            rule:
+              enum:
+                - owner-only
+                - owner-or-project-lead
+                - team-member
+                - project-lead-only
+
+  ta-owner-check-responses:
+    description: >
+      Una operación con x-owner-check debe declarar 403 y 404. Confundirlos
+      filtra la existencia de recursos ajenos.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          if:
+            required: ["x-owner-check"]
+          then:
+            required: ["responses"]
+            properties:
+              responses:
+                type: object
+                required: ["403", "404"]
+
+  # --- Validación de entrada (ASVS V5) ---
+  ta-path-id-is-uuid:
+    description: Los identificadores de path son UUID, nunca secuenciales.
+    severity: error
+    given: "$..parameters[?(@.in == 'path')]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          if:
+            required: ["name"]
+            properties:
+              name: { pattern: "Id$" }
+          then:
+            required: ["schema"]
+            properties:
+              schema:
+                type: object
+                required: ["format"]
+                properties:
+                  format: { const: uuid }
+
+  ta-string-has-maxlength:
+    description: Todo campo de texto libre declara maxLength.
+    severity: error
+    given: "$.components.schemas..properties[*]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          if:
+            allOf:
+              - required: ["type"]
+                properties:
+                  type: { const: string }
+              - not: { required: ["enum"] }
+              - not: { required: ["format"] }
+          then:
+            required: ["maxLength"]
+
+  ta-collection-has-pagination:
+    description: Una colección sin paginación es un vector de agotamiento.
+    severity: warn
+    given: "$.paths[*].get"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          if:
+            not:
+              allOf:
+                - required: ["parameters"]
+                - properties:
+                    parameters:
+                      type: array
+                      contains:
+                        type: object
+                        required: ["in"]
+                        properties:
+                          in: { const: path }
+          then:
+            required: ["parameters"]
+            properties:
+              parameters:
+                type: array
+                contains:
+                  type: object
+                  required: ["name"]
+                  properties:
+                    name: { const: limit }
+
+  # --- Versionado (ADR-0003) ---
+  ta-info-version-semver:
+    description: info.version sigue versionado semántico.
+    severity: error
+    given: "$.info.version"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^\\d+\\.\\d+\\.\\d+$"
+
+  ta-servers-v1-prefix:
+    description: Las rutas van bajo el prefijo de versión mayor.
+    severity: error
+    given: "$.servers[*].url"
+    then:
+      function: pattern
+      functionOptions:
+        match: "/v\\d+$"

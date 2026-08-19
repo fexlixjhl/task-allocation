@@ -1,0 +1,84 @@
+name: spec-gate
+
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - '.github/workflows/spec-gate.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: spec-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: spec-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Autotest del ruleset y lint del contrato
+        run: make spec-lint
+
+  breaking:
+    name: spec-breaking
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: hashFiles('api/openapi.yaml') != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Instalar oasdiff
+        run: go install github.com/oasdiff/oasdiff@latest
+
+      - name: Detectar cambios incompatibles
+        id: diff
+        run: |
+          git show origin/${{ github.base_ref }}:api/openapi.yaml > /tmp/base.yaml 2>/dev/null || {
+            echo "sin spec en la base, primer contrato"; echo "breaking=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          if oasdiff breaking /tmp/base.yaml api/openapi.yaml --fail-on ERR; then
+            echo "breaking=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "breaking=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Exigir las tres condiciones de ADR-0003
+        if: steps.diff.outputs.breaking == 'true'
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          fail=0
+
+          echo "$LABELS" | grep -q 'contract:breaking' \
+            || { echo "FALTA: label contract:breaking"; fail=1; }
+
+          git show origin/${{ github.base_ref }}:api/openapi.yaml > /tmp/base.yaml
+          base_major=$(grep -m1 '^  version:' /tmp/base.yaml | tr -d ' "' | cut -d: -f2 | cut -d. -f1)
+          head_major=$(grep -m1 '^  version:' api/openapi.yaml | tr -d ' "' | cut -d: -f2 | cut -d. -f1)
+          [ "$head_major" -gt "$base_major" ] \
+            || { echo "FALTA: info.version debe subir de MAJOR ($base_major -> $head_major)"; fail=1; }
+
+          grep -qi '^## *Migraci' <<<"$BODY" \
+            || { echo "FALTA: sección '## Migración' en el cuerpo del PR"; fail=1; }
+
+          if [ "$fail" -ne 0 ]; then
+            echo "Cambio incompatible sin las tres condiciones de ADR-0003."
+            exit 1
+          fi
+          echo "Cambio incompatible correctamente declarado."

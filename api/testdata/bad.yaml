@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: task-allocation
+  version: "0.1"                      # ta-info-version-semver
+  description: Spec de prueba con defectos deliberados.
+  contact: { name: fexlixjhl }
+tags:
+  - name: slots
+    description: Franjas horarias
+servers:
+  - url: https://api.example.test     # ta-servers-v1-prefix
+paths:
+  /slots:
+    get:                              # ta-operation-source-issue
+      operationId: listSlots          # ta-operation-required-scope
+      summary: Lista franjas          # ta-collection-has-pagination
+      description: Sin paginación, a propósito.
+      tags: [slots]
+      security:
+        - oidc: [slots:read]
+      responses:
+        '200': { description: OK }
+  /slots/{slotId}:
+    patch:
+      operationId: updateSlot
+      summary: Actualiza una franja
+      description: Con varios defectos deliberados.
+      tags: [slots]
+      x-source-issue: "diecisiete"    # ta-operation-source-issue (tipo)
+      x-required-scope: ESCRITURA     # ta-operation-required-scope (patrón)
+      x-owner-check:
+        resource: franja              # ta-owner-check-shape
+        param: slotId
+        rule: si-es-suya              # ta-owner-check-shape
+      security:
+        - oidc: [slots:write]
+      parameters:
+        - name: slotId
+          in: path
+          required: true
+          schema: { type: integer }   # ta-path-id-is-uuid
+      responses:
+        '204': { description: Actualizada }
+        # ta-owner-check-responses: faltan 403/404
+  /projects:
+    post:
+      operationId: createProject
+      summary: Crea un proyecto
+      description: Sin security declarado.
+      tags: [slots]
+      x-source-issue: 21
+      responses:                      # ta-operation-security-declared
+        '201': { description: Creado }
+  /projects/{projectId}:
+    delete:
+      operationId: deleteProject
+      summary: Elimina un proyecto
+      description: Opera sobre una instancia y no declara x-owner-check.
+      tags: [slots]
+      x-source-issue: 21
+      x-required-scope: projects:write
+      security:
+        - oidc: [projects:write]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:                      # ta-owner-check-required
+        '204': { description: Eliminado }
+        '403': { description: Prohibido }
+        '404': { description: No encontrado }
+  /health:
+    get:
+      operationId: health
+      summary: Estado del servicio
+      description: Endpoint público declarado explícitamente.
+      tags: [slots]
+      x-source-issue: 3
+      security: []                    # ta-public-operation-is-visible (warn)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+
+components:
+  securitySchemes:
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: https://idp.example.test/.well-known/openid-configuration
+  schemas:
+    Project:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }        # ta-string-has-maxlength
