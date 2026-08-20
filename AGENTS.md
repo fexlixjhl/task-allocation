@@ -11,7 +11,7 @@ tiene razón y el código es el bug.
 Solo `contract-designer` modifica `api/openapi.yaml`.
 
 ## Estructura
-- `backend/`  Go 1.25, módulo `github.com/fexlixjhl/task-allocation/backend`
+- `backend/`  Go 1.26, módulo `github.com/fexlixjhl/task-allocation/backend`
 - `frontend/` Vue 3 + TypeScript, cliente generado en `frontend/src/api/`
 - `docs/features/<slug>/` artefactos RPI de cada cambio
 - `docs/adr/` decisiones de arquitectura vigentes
