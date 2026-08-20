@@ -1,0 +1,39 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: queries
+    gen:
+      go:
+        package: gen
+        out: internal/adapters/postgres/gen
+        sql_package: pgx/v5
+        emit_interface: true
+        emit_json_tags: false
+        emit_empty_slices: true
+        emit_pointers_for_null_types: true
+        emit_prepared_queries: false
+        # Paquetes externos: forma larga en AMBOS elementos del par, o sqlc
+        # emite el import dos veces. Stdlib: forma corta, o sqlc lo duplica
+        # con el suyo. Verificado a base de compilar; no está documentado.
+        overrides:
+          - db_type: "uuid"
+            go_type:
+              import: "github.com/google/uuid"
+              package: "uuid"
+              type: "UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              package: "uuid"
+              type: "UUID"
+              pointer: true
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          # PENDIENTE: sin puntero. Ninguna columna de fecha es nullable hoy.
+          # Cuando aparezca la primera, verificar que el cero de time.Time no
+          # se confunde con ausencia de valor.
+          - db_type: "timestamptz"
+            nullable: true
+            go_type: "time.Time"
