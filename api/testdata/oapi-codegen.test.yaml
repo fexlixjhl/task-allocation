@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/v2.8.0/configuration-schema.json
+package: genfixture
+output: ../../.tmp/oapi-selftest/server.gen.go
+
+generate:
+  std-http-server: true
+  strict-server: true
+  models: true
+  embedded-spec: true
