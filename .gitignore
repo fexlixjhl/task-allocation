@@ -22,3 +22,6 @@ node_modules/
 .idea/
 *.iml
 .vscode/
+
+# Salidas temporales de verificación
+.tmp/
