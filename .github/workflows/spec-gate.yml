@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'api/**'
+      - '.oasdiff.yaml'
       - '.github/workflows/spec-gate.yml'
 
 permissions:
@@ -33,32 +34,33 @@ jobs:
     name: spec-breaking
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: hashFiles('api/openapi.yaml') != ''
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
+      - name: Traer la rama base
+        run: git fetch --depth=1 origin ${{ github.base_ref }}
 
-      - name: Instalar oasdiff
-        run: go install github.com/oasdiff/oasdiff@latest
+      - name: ¿Existe contrato en la base?
+        id: base
+        run: |
+          if git cat-file -e "origin/${{ github.base_ref }}:api/openapi.yaml" 2>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sin spec en la base: es el primer contrato, nada que comparar"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Detectar cambios incompatibles
         id: diff
-        run: |
-          git show origin/${{ github.base_ref }}:api/openapi.yaml > /tmp/base.yaml 2>/dev/null || {
-            echo "sin spec en la base, primer contrato"; echo "breaking=false" >> "$GITHUB_OUTPUT"; exit 0; }
-          if oasdiff breaking /tmp/base.yaml api/openapi.yaml --fail-on ERR; then
-            echo "breaking=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "breaking=true" >> "$GITHUB_OUTPUT"
-          fi
+        if: steps.base.outputs.exists == 'true'
+        continue-on-error: true
+        uses: oasdiff/oasdiff-action/breaking@v0
+        with:
+          base: 'origin/${{ github.base_ref }}:api/openapi.yaml'
+          revision: 'HEAD:api/openapi.yaml'
 
       - name: Exigir las tres condiciones de ADR-0003
-        if: steps.diff.outputs.breaking == 'true'
+        if: steps.diff.outcome == 'failure'
         env:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           BODY: ${{ github.event.pull_request.body }}
@@ -68,9 +70,10 @@ jobs:
           echo "$LABELS" | grep -q 'contract:breaking' \
             || { echo "FALTA: label contract:breaking"; fail=1; }
 
-          git show origin/${{ github.base_ref }}:api/openapi.yaml > /tmp/base.yaml
-          base_major=$(grep -m1 '^  version:' /tmp/base.yaml | tr -d ' "' | cut -d: -f2 | cut -d. -f1)
-          head_major=$(grep -m1 '^  version:' api/openapi.yaml | tr -d ' "' | cut -d: -f2 | cut -d. -f1)
+          base_major=$(git show "origin/${{ github.base_ref }}:api/openapi.yaml" \
+            | grep -m1 '^  version:' | tr -d ' "' | cut -d: -f2 | cut -d. -f1)
+          head_major=$(grep -m1 '^  version:' api/openapi.yaml \
+            | tr -d ' "' | cut -d: -f2 | cut -d. -f1)
           [ "$head_major" -gt "$base_major" ] \
             || { echo "FALTA: info.version debe subir de MAJOR ($base_major -> $head_major)"; fail=1; }
 
