@@ -1,0 +1,5 @@
+fail-on: ERR
+exclude-elements:
+  - description
+  - title
+  - summary
